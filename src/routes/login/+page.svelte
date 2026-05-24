@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { login } from '$lib/stores/auth';
+	import { Card, Label, Input, Button, Alert } from 'flowbite-svelte';
+	import { UserCircleSolid, LockSolid } from 'flowbite-svelte-icons';
 
 	let username = $state('');
 	let password = $state('');
@@ -8,6 +10,10 @@
 
 	async function handleLogin() {
 		error = '';
+		if (!username.trim() || !password) {
+			error = 'Please enter your username and password.';
+			return;
+		}
 		loading = true;
 		try {
 			await login(username, password);
@@ -20,45 +26,39 @@
 </script>
 
 <div class="flex min-h-screen items-center justify-center bg-gray-50 px-4">
-	<form onsubmit={(e) => { e.preventDefault(); handleLogin(); }} class="w-full max-w-sm rounded-xl bg-white p-8 shadow-lg">
+	<Card class="w-full max-w-md p-8">
 		<h1 class="mb-6 text-center text-3xl font-bold text-blue-700">Message</h1>
 
-		<div class="mb-4">
-			<label for="username" class="mb-1 block text-sm font-medium text-gray-700">Username</label>
-			<input
-				id="username"
-				type="text"
-				bind:value={username}
-				class="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
-				autocomplete="username"
-			/>
-		</div>
+		<form onsubmit={(e) => { e.preventDefault(); handleLogin(); }} class="space-y-4">
+			<div>
+				<Label for="username" class="mb-1 block">Username</Label>
+				<Input id="username" type="text" bind:value={username} placeholder="Username or email" autocomplete="username" class="pl-10">
+					{#snippet left()}
+						<UserCircleSolid class="h-5 w-5 text-gray-400" />
+					{/snippet}
+				</Input>
+			</div>
 
-		<div class="mb-4">
-			<label for="password" class="mb-1 block text-sm font-medium text-gray-700">Password</label>
-			<input
-				id="password"
-				type="password"
-				bind:value={password}
-				class="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
-				autocomplete="current-password"
-			/>
-		</div>
+			<div>
+				<Label for="password" class="mb-1 block">Password</Label>
+				<Input id="password" type="password" bind:value={password} placeholder="Password" autocomplete="current-password" class="pl-10">
+					{#snippet left()}
+						<LockSolid class="h-5 w-5 text-gray-400" />
+					{/snippet}
+				</Input>
+			</div>
 
-		{#if error}
-			<p class="mb-4 text-center text-sm text-red-600">{error}</p>
-		{/if}
+			{#if error}
+				<Alert color="red">{error}</Alert>
+			{/if}
 
-		<button
-			type="submit"
-			disabled={loading}
-			class="w-full rounded-lg bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-		>
-			{loading ? 'Signing in...' : 'Sign In'}
-		</button>
+			<Button type="submit" class="w-full" {loading}>
+				{loading ? 'Signing in...' : 'Sign In'}
+			</Button>
+		</form>
 
 		<p class="mt-4 text-center text-sm text-gray-500">
 			<a href="/register" class="text-blue-600 hover:underline">Create account</a>
 		</p>
-	</form>
+	</Card>
 </div>
