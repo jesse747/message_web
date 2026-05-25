@@ -2,29 +2,48 @@
 	import '../app.css';
 	import { onMount } from 'svelte';
 	import { currentUser, isAuthenticated, initAuth, logout } from '$lib/stores/auth';
+	import { darkMode, initTheme, toggleTheme } from '$lib/stores/theme';
+	import { initHighlightColor } from '$lib/stores/preferences';
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
+	import { Spinner, Dropdown, DropdownHeader, DropdownItem } from 'flowbite-svelte';
+	import {
+		UsersSolid,
+		UsersGroupSolid,
+		FolderSolid,
+		CogOutline,
+		ArrowLeftToBracketOutline,
+		BarsOutline,
+		CloseOutline,
+		MoonSolid,
+		SunSolid
+	} from 'flowbite-svelte-icons';
 
 	let { children } = $props();
 
 	const navItems = [
-		{ href: '/directory', label: 'Directory', icon: 'people' },
-		{ href: '/teams', label: 'Teams', icon: 'team' },
-		{ href: '/groups', label: 'Groups', icon: 'people' },
+		{ href: '/directory', label: 'Directory', Icon: UsersSolid },
+		{ href: '/teams', label: 'Teams', Icon: UsersGroupSolid },
+		{ href: '/groups', label: 'Groups', Icon: FolderSolid }
 	];
 
-	function navIcon(name: string) {
-		if (name === 'team')
-			return '<svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" /></svg>';
-		return '<svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>';
-	}
+	const ADMIN_CAPABILITIES = ['edit_directory', 'manage_users', 'manage_organization', 'manage_groups', 'manage_teams', 'manage_events', 'manage_flocks', 'manage_rosters', 'manage_files', 'manage_announcements'];
 
-	const logoutSvg = '<svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>';
+	const adminItems = $derived(
+		ADMIN_CAPABILITIES.some((cap) => $currentUser?.capabilities?.includes(cap))
+			? [{ href: '/settings', label: 'Settings', Icon: CogOutline }]
+			: []
+	);
+
+	const allItems = $derived([...navItems, ...adminItems]);
 
 	let loading = $state(true);
 	let mobileMenuOpen = $state(false);
+	let userMenuOpen = $state(false);
 
 	onMount(async () => {
+		initTheme();
+		initHighlightColor();
 		await initAuth();
 		loading = false;
 	});
@@ -33,14 +52,24 @@
 		mobileMenuOpen = false;
 	}
 
+	function handleLogout() {
+		userMenuOpen = false;
+		logout();
+	}
+
+	function goSettings() {
+		userMenuOpen = false;
+		goto('/settings/profile');
+	}
+
 	function isActive(path: string) {
 		return $page.url.pathname.startsWith(path);
 	}
 
 	function activeClass(path: string) {
 		return isActive(path)
-			? 'bg-blue-50 text-blue-700'
-			: 'text-gray-700 hover:bg-gray-100';
+			? 'bg-primary-50 text-primary-700 dark:bg-primary-900/30 dark:text-primary-400'
+			: 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700';
 	}
 
 	$effect(() => {
@@ -48,7 +77,7 @@
 		const auth = $isAuthenticated;
 		const path = $page.url.pathname;
 
-		if (!auth && path !== '/login' && path !== '/register') {
+		if (!auth && path !== '/login' && path !== '/register' && path !== '/forgot-password' && path !== '/reset-password') {
 			goto('/login');
 		} else if (auth && (path === '/login' || path === '/register' || path === '/')) {
 			goto('/directory');
@@ -57,85 +86,140 @@
 </script>
 
 {#if loading}
-	<div class="flex h-screen items-center justify-center">
-		<div class="h-10 w-10 animate-spin rounded-full border-4 border-gray-300 border-t-blue-600"></div>
+	<div class="flex h-screen items-center justify-center bg-white dark:bg-gray-900">
+		<Spinner size="10" />
 	</div>
 {:else if $isAuthenticated}
-	<div class="flex h-screen">
-		<!-- Mobile header (hidden on md+) -->
-		<header class="fixed left-0 right-0 top-0 z-30 flex items-center justify-between border-b bg-white px-4 py-3 md:hidden">
-			<div class="flex items-center gap-2">
+	<div class="flex flex-col h-screen">
+		<!-- Top bar (full width, all breakpoints) -->
+		<header
+			class="flex h-14 shrink-0 items-center justify-between border-b bg-white px-4 dark:border-gray-700 dark:bg-gray-800"
+		>
+			<div class="flex items-center gap-3">
 				<button
-					onclick={() => mobileMenuOpen = !mobileMenuOpen}
-					class="p-1 text-gray-600 hover:text-gray-900"
+					onclick={() => (mobileMenuOpen = !mobileMenuOpen)}
+					class="p-1 text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white md:hidden"
 					aria-label="Toggle menu"
 				>
 					{#if mobileMenuOpen}
-						<svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18 18 6M6 6l12 12" /></svg>
+						<CloseOutline class="h-6 w-6" />
 					{:else}
-						<svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" /></svg>
+						<BarsOutline class="h-6 w-6" />
 					{/if}
 				</button>
-				<a href="/directory" class="text-xl font-bold text-blue-700">Message</a>
+			<a href="/directory" class="flex items-center gap-2 text-xl font-bold text-blue-700 dark:text-blue-400">
+					<img src="/favicon.svg" alt="" class="h-6 w-6" />
+					Message
+				</a>
+			</div>
+
+			<div class="flex items-center gap-1">
+				<button
+					onclick={toggleTheme}
+					class="rounded-lg p-2 text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+					aria-label="Toggle theme"
+				>
+					{#if $darkMode}
+						<SunSolid class="h-5 w-5" />
+					{:else}
+						<MoonSolid class="h-5 w-5" />
+					{/if}
+				</button>
+
+				<button
+				onclick={() => (userMenuOpen = !userMenuOpen)}
+				class="rounded-lg p-2 text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+				aria-label="User menu"
+			>
+				<span
+					class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-100 text-sm font-bold text-primary-700 dark:bg-primary-900 dark:text-primary-300"
+				>
+					{$currentUser?.display_name?.charAt(0) || '?'}
+				</span>
+			</button>
+			<Dropdown bind:isOpen={userMenuOpen} placement="bottom-end" offset={4}>
+				<DropdownHeader>
+					<div class="flex items-center gap-3">
+						<span
+							class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-100 text-sm font-bold text-primary-700 dark:bg-primary-900 dark:text-primary-300"
+						>
+							{$currentUser?.display_name?.charAt(0) || '?'}
+						</span>
+						<span class="font-semibold text-gray-900 dark:text-white">
+							{$currentUser?.display_name}
+						</span>
+					</div>
+				</DropdownHeader>
+				<DropdownItem onclick={goSettings}>
+					<span class="flex items-center gap-2 whitespace-nowrap">
+						<CogOutline class="h-4 w-4" />
+						My Settings
+					</span>
+				</DropdownItem>
+				<DropdownItem onclick={handleLogout}>
+					<span class="flex items-center gap-2 whitespace-nowrap">
+						<ArrowLeftToBracketOutline class="h-4 w-4" />
+						Sign out
+					</span>
+				</DropdownItem>
+			</Dropdown>
 			</div>
 		</header>
 
-		<!-- Mobile dropdown (hidden on md+) -->
+		<!-- Mobile nav dropdown -->
 		{#if mobileMenuOpen}
-			<div class="fixed inset-0 z-40 md:hidden" onclick={closeMobileMenu}></div>
-			<div class="fixed left-0 right-0 top-[57px] z-50 border-b bg-white shadow-lg md:hidden">
+			<div class="fixed inset-0 z-40 md:hidden" onclick={closeMobileMenu} role="presentation"></div>
+			<div class="fixed left-0 right-0 top-14 z-50 border-b bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800 md:hidden">
 				<nav class="flex flex-col gap-1 px-3 py-2">
-					{#each navItems as item}
-						<a href={item.href} onclick={closeMobileMenu} class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium {activeClass(item.href)}">
-							{@html navIcon(item.icon)}
+					{#each allItems as item}
+						<a
+							href={item.href}
+							onclick={closeMobileMenu}
+							class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium {activeClass(item.href)}"
+						>
+							<item.Icon class="h-5 w-5" />
 							{item.label}
 						</a>
 					{/each}
-					<hr class="my-1 border-gray-200">
-					<span class="flex items-center gap-3 px-3 py-2 text-sm text-gray-500">
-						<svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
-						{$currentUser?.display_name}
-					</span>
-					<button onclick={() => { closeMobileMenu(); logout(); }} class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50">
-						{@html logoutSvg}
-						Sign out
-					</button>
 				</nav>
 			</div>
 		{/if}
 
-		<!-- Desktop sidebar (hidden on <md) -->
-		<aside class="hidden w-56 flex-shrink-0 flex-col border-r bg-white md:flex">
-			<a href="/directory" class="px-6 py-5 text-xl font-bold text-blue-700">Message</a>
+		<div class="flex flex-1 overflow-hidden">
+			<!-- Desktop sidebar (below top bar, nav links only) -->
+			<aside class="hidden w-56 flex-shrink-0 border-r bg-white dark:border-gray-700 dark:bg-gray-800 md:flex md:flex-col">
+				<nav class="flex flex-col gap-1 p-3">
+					{#each allItems as item}
+						<a
+							href={item.href}
+							class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium {activeClass(item.href)}"
+						>
+							<item.Icon class="h-5 w-5" />
+							{item.label}
+						</a>
+					{/each}
+				</nav>
+			</aside>
 
-			<nav class="flex flex-col gap-1 px-3">
-				{#each navItems as item}
-					<a href={item.href} class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium {activeClass(item.href)}">
-						{@html navIcon(item.icon)}
-						{item.label}
-					</a>
-				{/each}
-			</nav>
-
-			<div class="mt-auto border-t px-3 py-4">
-				<div class="flex items-center gap-3 px-3 pb-3 text-sm text-gray-500">
-					<svg class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
-					<span class="truncate">{$currentUser?.display_name}</span>
+			<!-- Main content -->
+			<main class="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-900">
+				<div class="p-6">
+					{@render children()}
 				</div>
-				<button onclick={logout} class="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50">
-					{@html logoutSvg}
-					Sign out
-				</button>
-			</div>
-		</aside>
-
-		<!-- Main content area -->
-		<main class="flex-1 overflow-y-auto bg-gray-50 pt-[57px] md:pt-0">
-			<div class="p-6">
-				{@render children()}
-			</div>
-		</main>
+			</main>
+		</div>
 	</div>
 {:else}
+	<button
+		onclick={toggleTheme}
+		class="fixed right-4 top-4 z-50 rounded-lg p-2 text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+		aria-label="Toggle theme"
+	>
+		{#if $darkMode}
+			<SunSolid class="h-5 w-5" />
+		{:else}
+			<MoonSolid class="h-5 w-5" />
+		{/if}
+	</button>
 	{@render children()}
 {/if}

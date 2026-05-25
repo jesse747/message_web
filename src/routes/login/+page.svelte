@@ -25,7 +25,7 @@
 	}
 </script>
 
-<div class="flex min-h-screen items-center justify-center bg-gray-50 px-4">
+<div class="flex min-h-screen items-center justify-center bg-gray-50 px-4 dark:bg-gray-900">
 	<Card class="w-full max-w-md p-8">
 		<h1 class="mb-6 text-center text-3xl font-bold text-blue-700">Message</h1>
 
@@ -57,8 +57,8 @@
 			</Button>
 		</form>
 
-		<p class="mt-4 text-center text-sm text-gray-500">
-			<a href="/register" class="text-blue-600 hover:underline">Create account</a>
+		<p class="mt-4 text-center text-sm text-gray-500 dark:text-gray-400">
+			<a href="/forgot-password" class="text-primary-600 hover:underline dark:text-primary-400">Forgot password?</a>
 		</p>
 	</Card>
 </div>

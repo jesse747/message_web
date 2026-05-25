@@ -1,5 +1,5 @@
 <div class="mx-auto max-w-2xl">
 	<h1 class="text-2xl font-bold text-gray-900">Team Detail</h1>
 	<p class="mt-2 text-gray-500">Coming soon.</p>
-	<a href="/teams" class="mt-4 inline-block text-blue-600 hover:underline">&larr; Back</a>
+	<a href="/teams" class="mt-4 inline-block text-primary-600 hover:underline dark:text-primary-400">&larr; Back</a>
 </div>

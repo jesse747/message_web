@@ -32,14 +32,14 @@
 	}
 </script>
 
-<div class="flex min-h-screen items-center justify-center bg-gray-50 px-4">
+<div class="flex min-h-screen items-center justify-center bg-gray-50 px-4 dark:bg-gray-900">
 	{#if !invite_code}
 		<Card class="w-full max-w-md p-8 text-center">
 			<h1 class="mb-4 text-2xl font-bold text-blue-700">Message</h1>
 			<Alert color="yellow" class="mb-4">
 				No invite code provided. Please use the link from your invitation email.
 			</Alert>
-			<a href="/login" class="text-blue-600 hover:underline">Back to sign in</a>
+			<a href="/login" class="text-primary-600 hover:underline dark:text-primary-400">Back to sign in</a>
 		</Card>
 	{:else}
 		<Card class="w-full max-w-md p-8">
@@ -92,7 +92,7 @@
 			</form>
 
 			<p class="mt-4 text-center text-sm text-gray-500">
-				<a href="/login" class="text-blue-600 hover:underline">Already have an account?</a>
+				<a href="/login" class="text-primary-600 hover:underline dark:text-primary-400">Already have an account?</a>
 			</p>
 		</Card>
 	{/if}

@@ -1,16 +1,27 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { fetchPersons, deletePerson } from '$lib/api/persons';
-	import SearchBar from '$lib/components/SearchBar.svelte';
-	import LoadingState from '$lib/components/LoadingState.svelte';
-	import ErrorState from '$lib/components/ErrorState.svelte';
 	import { goto } from '$app/navigation';
+	import { currentUser } from '$lib/stores/auth';
 	import type { Person } from '$lib/types/models';
+	import { Button, Input, Spinner, Alert, Badge, Modal } from 'flowbite-svelte';
+	import { SearchOutline } from 'flowbite-svelte-icons';
 
 	let persons = $state<Person[]>([]);
 	let loading = $state(true);
 	let error = $state('');
 	let search = $state('');
+	let searchTimer: ReturnType<typeof setTimeout>;
+	let showDeleteModal = $state(false);
+	let deleteTargetId = $state<number | null>(null);
+
+	const canEdit = $derived($currentUser?.capabilities?.includes('edit_directory') ?? false);
+	const canDelete = $derived($currentUser?.role === 'admin');
+
+	function debouncedLoad() {
+		clearTimeout(searchTimer);
+		searchTimer = setTimeout(load, 300);
+	}
 
 	async function load() {
 		loading = true;
@@ -31,12 +42,18 @@
 		return `${p.first_name} ${p.last_name}`;
 	}
 
-	async function handleDelete(id: number, e: Event) {
+	function openDeleteModal(id: number, e: MouseEvent) {
 		e.stopPropagation();
-		if (!confirm('Delete this person?')) return;
+		deleteTargetId = id;
+		showDeleteModal = true;
+	}
+
+	async function confirmDelete() {
+		if (deleteTargetId === null) return;
+		showDeleteModal = false;
 		try {
-			await deletePerson(id);
-			persons = persons.filter((p) => p.id !== id);
+			await deletePerson(deleteTargetId);
+			persons = persons.filter((p) => p.id !== deleteTargetId);
 		} catch {
 			error = 'Failed to delete';
 		}
@@ -45,43 +62,64 @@
 
 <div class="mx-auto max-w-3xl">
 	<div class="mb-4 flex items-center justify-between">
-		<h1 class="text-2xl font-bold text-gray-900">Directory</h1>
-		<a href="/directory/new" class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">
-			Add Person
-		</a>
+		<h1 class="text-2xl font-bold text-gray-900 dark:text-white">Directory</h1>
+				{#if canEdit}
+					<Button href="/directory/new">Add Person</Button>
+				{/if}
 	</div>
 
 	<div class="mb-4">
-		<SearchBar value={search} onChange={(v) => { search = v; load(); }} />
+		<Input type="search" bind:value={search} placeholder="Search..." oninput={debouncedLoad} class="pl-9">
+			{#snippet left()}
+				<SearchOutline class="h-4 w-4 text-gray-400" />
+			{/snippet}
+		</Input>
 	</div>
 
 	{#if loading}
-		<LoadingState />
+		<div class="flex justify-center py-16">
+			<Spinner size="8" />
+		</div>
 	{:else if error}
-		<ErrorState message={error} onRetry={load} />
+		<Alert color="red" class="mb-4">{error}</Alert>
+		<Button onclick={load} size="sm">Retry</Button>
 	{:else if persons.length === 0}
-		<p class="py-8 text-center text-gray-500">No persons found</p>
+		<p class="py-8 text-center text-gray-500 dark:text-gray-400">No persons found</p>
 	{:else}
-		<div class="overflow-hidden rounded-xl bg-white shadow">
+		<div class="overflow-hidden rounded-xl bg-white shadow dark:bg-gray-800">
 			{#each persons as person (person.id)}
 				<div
+					role="button"
+					tabindex="0"
 					onclick={() => goto(`/directory/${person.id}`)}
-					class="flex cursor-pointer items-center justify-between border-b border-gray-100 px-4 py-3 last:border-0 hover:bg-gray-50"
+					onkeydown={(e) => {
+						if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); goto(`/directory/${person.id}`); }
+					}}
+					class="flex w-full cursor-pointer items-center justify-between border-b border-gray-100 px-4 py-3 last:border-0 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800"
 				>
 					<div>
-						<span class="font-medium text-gray-900">{formatName(person)}</span>
+						<span class="font-medium text-gray-900 dark:text-white">{formatName(person)}</span>
 						{#if person.membership_status}
-							<span class="ml-2 rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600">{person.membership_status}</span>
+							<Badge class="ml-2">{person.membership_status}</Badge>
 						{/if}
 					</div>
-					<button
-						onclick={(e) => handleDelete(person.id, e)}
-						class="text-sm text-red-600 hover:text-red-800"
-					>
-						Delete
-					</button>
+					{#if canDelete}
+						<Button color="red" size="xs" outline onclick={(e: MouseEvent) => openDeleteModal(person.id, e)}>
+							Delete
+						</Button>
+					{/if}
 				</div>
 			{/each}
 		</div>
 	{/if}
 </div>
+
+<Modal bind:open={showDeleteModal} title="Delete Person" size="sm">
+	<p class="text-gray-600">Are you sure you want to delete this person? This action cannot be undone.</p>
+	{#snippet footer()}
+		<div class="flex justify-end gap-2">
+			<Button color="alternative" onclick={() => showDeleteModal = false}>Cancel</Button>
+			<Button color="red" onclick={confirmDelete}>Delete</Button>
+		</div>
+	{/snippet}
+</Modal>

@@ -1,42 +1,83 @@
-# sv
+# Message Web
 
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
+Church management frontend — SvelteKit, Tailwind CSS, Flowbite-Svelte.
 
-## Creating a project
+## Prerequisites
 
-If you're seeing this, you've probably already done this step. Congrats!
+- Node.js 20+
+- [Message API](../message/README.md) backend running
 
-```sh
-# create a new project
-npx sv create my-app
-```
+## Quickstart
 
-To recreate this project with the same configuration:
-
-```sh
-# recreate this project
-npx sv@0.15.3 create --template minimal --types ts --install npm message-web
-```
-
-## Developing
-
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
-
-```sh
+```bash
+cd message-web
+npm install
 npm run dev
-
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
 ```
 
-## Building
+The dev server starts at `http://localhost:5173`.
 
-To create a production version of your app:
+## Environment
 
-```sh
-npm run build
+Create a `.env` file to point to the Flask backend:
+
+```
+VITE_API_URL=http://localhost:5000/api/v1
 ```
 
-You can preview the production build with `npm run preview`.
+Defaults to `http://localhost:5000/api/v1` if not set.
 
-> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
+## Available scripts
+
+| Script | Description |
+|--------|-------------|
+| `npm run dev` | Start Vite dev server with HMR at `localhost:5173` |
+| `npm run build` | Production build to `.svelte-kit/output/` |
+| `npm run preview` | Preview production build locally |
+| `npm run check` | Type-check with svelte-check |
+
+## Tech stack
+
+| Layer | Technology |
+|-------|-----------|
+| Framework | SvelteKit 2 (Svelte 5 runes mode) |
+| UI | Flowbite-Svelte + Flowbite-Svelte-Icons |
+| CSS | Tailwind CSS v4 |
+| Language | TypeScript |
+| Build | Vite 8 |
+
+## Project structure
+
+```
+src/
+├── app.css              # Tailwind imports + flowbite plugin
+├── app.html             # HTML shell
+├── routes/              # File-based SvelteKit routes
+│   ├── +layout.svelte   # Auth guard, full-width top bar, sidebar nav
+│   ├── +error.svelte    # Error boundary page
+│   ├── +page.svelte     # Root → redirects to /login
+│   ├── login/           # Login page
+│   ├── register/        # Registration page
+│   ├── directory/       # Person directory
+│   │   ├── +page.svelte       # List with search, delete modal
+│   │   ├── [id]/+page.svelte  # Detail view
+│   │   └── new/+page.svelte   # Create / edit form
+│   ├── teams/           # Teams (placeholder)
+│   └── groups/          # Groups (placeholder)
+├── lib/
+│   ├── api/
+│   │   └── persons.ts   # Person API client (CRUD)
+│   ├── stores/
+│   │   └── auth.ts      # Auth store, apiFetch with auto-refresh
+│   └── types/
+│       └── models.ts    # TypeScript interfaces (User, Person, Team, Group, etc.)
+└── static/              # Static assets (favicon, etc.)
+```
+
+## Auth flow
+
+1. On page load, `initAuth()` checks `localStorage` for a cached JWT access token
+2. If found, validates it via `GET /auth/user`
+3. If expired or missing, refreshes tokens via httpOnly cookie (`POST /auth/tokens`)
+4. Unauthenticated users are redirected to `/login`
+5. `apiFetch()` automatically refreshes tokens on 401 responses
